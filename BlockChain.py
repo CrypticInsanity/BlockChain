@@ -3,17 +3,19 @@ import random
 from hashlib import sha256
 from functools import reduce
 from flask import Flask
+from flask import request
+from flask import abort
+import json
 
 
 class BlockChain:
 
     def __init__(self):
         self.chain = []
-        self.transactions = [] # transaction list.
+        self.transactions = [] # transaction list. should be a set
         self.neighborNodes = [] #Addresses of the peer nodes connected to this one
         self.nounce = int(random.random()*100) # random number that will be used for find the proof of work
-        self.bits = 4 # init the number of bits for proof of work validation
-        self.time = time.time() # init the time stamp for the block creation
+        self.bits = 6 # init the number of bits for proof of work validation
         self.chain.append({
             "merkleTree":"4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
             "bits": self.bits,
@@ -22,7 +24,6 @@ class BlockChain:
             "version": 1
         })
         self.prev = self.createHash(self.chain[-1])
-
 
     #builds the merkle tree of the transactions.
     def createMerkleTree(self,transactionsArray):
@@ -71,13 +72,10 @@ class BlockChain:
             if(len(self.transactions) > 200):
                 self.Mine()
 
-
-
     def addBlock(self, Block, node):
         if(self.validateBlock(Block)):
             self.chain.append(Block)
             self.broadcastNewBlock(Block, node)
-
 
 
     def validateBlock(self, newBlock):
@@ -119,27 +117,49 @@ class BlockChain:
 
 app = Flask(__name__)
 
-
-@app.route('/')
+block = BlockChain()
+@app.route('/Chain')
 def hello_world():
-   return "<p>Hello World</p>"
+   return json.dumps(block.chain)
+
+
+@app.route('/transactions', methods=["POST"])
+def addTransaction():
+    try:
+        print request.data
+        if request.data:
+            data = json.loads(request.data)
+            block.addTransaction(data["transaction"])
+            return "transaction added successfully"
+        else:
+            return abort(400, "bad request")
+    except:
+        return abort(501,"internal server error")
+
+@app.route('/block', methods=["POST"])
+def addBlock():
+    try:
+        if request.data:
+            data = json.loads(request.data)
+            block = json.load(data["block"])
+            if(block.validateBlock(block)):
+                block.addBlock(block)
+                return "block received successfully"
+            else:
+                return abort(400, "Invalid block received");
+        else:
+            return abort(400, "bad request")
+    except:
+        return abort(501, "internal server error")
+
+@app.route('/register', methods=["GET"])
+def registerNode():
+    return "new node added"
+
 
 if __name__ == '__main__':
-   app.run()
+   app.run(debug=True)
 
-
-
-
-
-
-
-
-
-
-
-
-
-test = BlockChain()
 
 
 
