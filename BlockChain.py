@@ -13,6 +13,7 @@ class BlockChain:
     def __init__(self):
         self.chain = []
         self.transactions = [] # transaction list. should be a set
+        self.transactionsStore = set()
         self.neighborNodes = [] #Addresses of the peer nodes connected to this one
         self.nounce = int(random.random()*100) # random number that will be used for find the proof of work
         self.bits = 6 # init the number of bits for proof of work validation
@@ -21,9 +22,9 @@ class BlockChain:
             "bits": self.bits,
             "nounce": int(random.random()*100),
             "time": time.time(),
-            "version": 1
+            "version": 1,
+            "hash": sha256("Tiisetso-tjabane-31_May_2018").hexdigest()
         })
-        self.prev = self.createHash(self.chain[-1])
 
     #builds the merkle tree of the transactions.
     def createMerkleTree(self,transactionsArray):
@@ -61,17 +62,20 @@ class BlockChain:
                 "nounce": int(random.random()*100),
                 "time": time.time(),
                 "version": 1,
-                "prev": self.createHash(self.chain[-1])
+                "prev": self.chain[-1]["hash"]
             }
-            return self.createHash(block)
+            block["hash"] = self.createHash(block)
+            self.chain.append(block)
+            self.broadcastNewBlock(block, None)
 
     #adds new  Transactions
     def addTransaction(self, transaction):
         if(transaction):
             self.transactions.append(transaction)
-            if(len(self.transactions) > 200):
+            print(len(self.transactions))
+            if(len(self.transactions) > 6):
                 self.Mine()
-
+                self.transactions = []
     def addBlock(self, Block, node):
         if(self.validateBlock(Block)):
             self.chain.append(Block)
@@ -88,7 +92,6 @@ class BlockChain:
                 newBlock["prev"] and
                 newBlock["hash"]
                 )
-
           ):
             print("Block contains invalid data")
             return False
@@ -113,53 +116,6 @@ class BlockChain:
 
     def broadcastNewTransaction(self, transaction, originNode ):
         print("Send the newly received transaction to the rest of the network")
-
-
-app = Flask(__name__)
-
-block = BlockChain()
-@app.route('/Chain')
-def hello_world():
-   return json.dumps(block.chain)
-
-
-@app.route('/transactions', methods=["POST"])
-def addTransaction():
-    try:
-        print request.data
-        if request.data:
-            data = json.loads(request.data)
-            block.addTransaction(data["transaction"])
-            return "transaction added successfully"
-        else:
-            return abort(400, "bad request")
-    except:
-        return abort(501,"internal server error")
-
-@app.route('/block', methods=["POST"])
-def addBlock():
-    try:
-        if request.data:
-            data = json.loads(request.data)
-            block = json.load(data["block"])
-            if(block.validateBlock(block)):
-                block.addBlock(block)
-                return "block received successfully"
-            else:
-                return abort(400, "Invalid block received");
-        else:
-            return abort(400, "bad request")
-    except:
-        return abort(501, "internal server error")
-
-@app.route('/register', methods=["GET"])
-def registerNode():
-    return "new node added"
-
-
-if __name__ == '__main__':
-   app.run(debug=True)
-
 
 
 
