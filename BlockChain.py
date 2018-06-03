@@ -1,5 +1,6 @@
 import time
 import random
+import requests
 from hashlib import sha256
 from functools import reduce
 from flask import Flask
@@ -11,15 +12,15 @@ import json
 class BlockChain:
 
     def __init__(self):
-        self.chain = []
-        self.transactions = [] # transaction list. should be a set
-        self.transactionsStore = set()
-        self.neighborNodes = [] #Addresses of the peer nodes connected to this one
-        self.nounce = int(random.random()*100) # random number that will be used for find the proof of work
-        self.bits = 6 # init the number of bits for proof of work validation
-        self.chain.append({
+        self.__chain = []
+        self.__transactions = [] # transaction list. should be a set
+        self.__neighborNodes = set() #Addresses of the peer nodes connected to this one
+        self.__neighborNodes.add("http://127.0.0.1:5001")
+        #self.__neighborNodes.add("http://127.0.0.1:5002")
+        self.__bits = 6 # init the number of bits for proof of work validation
+        self.__chain.append({
             "merkleTree":"4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
-            "bits": self.bits,
+            "bits": self.__bits,
             "nounce": int(random.random()*100),
             "time": time.time(),
             "version": 1,
@@ -46,7 +47,7 @@ class BlockChain:
     #this is where the actual mining takes place, it incremenets the nounce until a hash with the right number of bits of produced or
     #receives a new block that its currently working on.
     def createHash(self, block):
-        validation  = reduce((lambda x, y: x + y), ["0"] * self.bits)
+        validation  = reduce((lambda x, y: x + y), ["0"] * self.__bits)
         currentBlockHash = sha256(str(block)).hexdigest()
         while(not currentBlockHash.startswith(validation)):
             block["nounce"] += 1
@@ -55,32 +56,38 @@ class BlockChain:
 
     #  init for a new block to be made, and once its found it will broadcast it to the rest of the network
     def Mine(self):
-        if len(self.transactions) > 0:
+        if len(self.__transactions) > 0:
+            print "Mining started"
             block = {
-                "merkleTree": self.createMerkleTree(self.transactions),
-                "bits": self.bits,
+                "merkleTree": self.createMerkleTree(self.__transactions),
+                "bits": self.__bits,
                 "nounce": int(random.random()*100),
                 "time": time.time(),
                 "version": 1,
-                "prev": self.chain[-1]["hash"]
+                "prev": self.__chain[-1]["hash"]
             }
             block["hash"] = self.createHash(block)
-            self.chain.append(block)
-            self.broadcastNewBlock(block, None)
+            self.__chain.append(block)
+            self.__broadcast(block, isBlock=True, originNode=None)
 
-    #adds new  Transactions
-    def addTransaction(self, transaction):
+    #adds new Transactions
+    def addTransaction(self, transaction, node=None):
         if(transaction):
-            self.transactions.append(transaction)
-            print(len(self.transactions))
-            if(len(self.transactions) > 6):
+            self.__transactions.append(transaction)
+            print(self.__transactions)
+            self.__broadcast(transaction, isBlock=False, originNode=node)
+            if len(self.__transactions) > 6:
                 self.Mine()
-                self.transactions = []
-    def addBlock(self, Block, node):
-        if(self.validateBlock(Block)):
-            self.chain.append(Block)
-            self.broadcastNewBlock(Block, node)
+                self.__transactions = []
 
+
+    def addBlock(self, Block, node):
+        if self.validateBlock(Block):
+            self.__chain.append(Block)
+        self.__broadcast(Block, isBlock=True, originNode=node)
+
+    def addNode(self, address):
+        self.__neighborNodes.append(address)
 
     def validateBlock(self, newBlock):
         #validate the values
@@ -111,13 +118,22 @@ class BlockChain:
         else:
             return True
 
-    def broadcastNewBlock(self, Block,Node):
+    def __broadcast(self,data, isBlock, originNode = None):
         print("send the new block to all the neighbor nodes")
-
-    def broadcastNewTransaction(self, transaction, originNode ):
-        print("Send the newly received transaction to the rest of the network")
-
-
+        results = []
+        if originNode:
+            self.__neighborNodes.remove(originNode)
+        if(isBlock):
+            for node in self.__neighborNodes:
+                print "%(node)s/block" % locals()
+                r = requests.post("%(node)s/block" % locals(), data={'block': json.dumps(data)})
+                results.append(r.status_code)
+        else:
+            for node in self.__neighborNodes:
+                r = requests.post("http://127.0.0.1:5002/transactions", data={'transaction': data})
+                print r.status_code, r.reason
+                results.append(r.status_code)
+        print results
 
 
 

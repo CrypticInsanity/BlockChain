@@ -1,16 +1,19 @@
 from flask import Flask
 from flask import request
 from flask import abort
-import json
 from BlockChain import BlockChain
+import validators
+import json
+
+
 
 app = Flask(__name__)
 block = BlockChain()
 
+
 @app.route('/transactions', methods=["POST"])
 def addTransaction():
     try:
-        print request.data
         if request.data:
             data = json.loads(request.data)
             block.addTransaction(data["transaction"])
@@ -26,7 +29,7 @@ def addBlock():
         if request.data:
             data = json.loads(request.data)
             block = json.load(data["block"])
-            if(block.validateBlock(block)):
+            if block.validateBlock(block):
                 block.addBlock(block)
                 return "block received successfully"
             else:
@@ -36,11 +39,23 @@ def addBlock():
     except:
         return abort(501, "internal server error")
 
-@app.route('/register', methods=["GET"])
+@app.route('/register', methods=["POST"])
 def registerNode():
-    print request.headers
-    return "new node added"
+    data = json.loads(request.data)
+    address = data["address"]
+    if validators.url(address):
+        block.addNode(address)
+        return "node added succesfully"
+    else:
+        return abort(401, "Invalid address received")
 
+@app.route('/', methods=["GET"])
+def index():
+    return "Welcome to the sample blockchain, best way to learn something its usually by building it"
+
+config = {
+    "port": 5000
+}
 
 if __name__ == '__main__':
-   app.run(debug=True)
+   app.run(debug=True, port=config["port"])
