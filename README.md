@@ -1,5 +1,4 @@
-# H1 BlockChain
-***
+# BlockChain
 
 Since the dawn to fame of bitcoin I have been very curios about how it works. I did some reasearch and now I have build my own from the research I have done.
 
