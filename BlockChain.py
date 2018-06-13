@@ -130,7 +130,7 @@ class BlockChain:
                 results.append(r.status_code)
         else:
             for node in self.__neighborNodes:
-                r = requests.post("http://127.0.0.1:5002/transactions", data={'transaction': data})
+                r = requests.post("http://127.0.0.1:5002/transactions", data=json.dumps({'transaction': data}))
                 print r.status_code, r.reason
                 results.append(r.status_code)
         print results
