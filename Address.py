@@ -23,6 +23,8 @@ sharip = ripemd160.hexdigest()
 
 
 #add version byte in front of RIPEMD-160 hash (0x00 for Main Network)
+# https://en.bitcoin.it/wiki/List_of_address_prefixes - link for more information regarding the prefixes
+
 main_address = "00" + sharip
 
 #Perform SHA-256 hash on the extended RIPEMD-160 result twice
